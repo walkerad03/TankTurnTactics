@@ -1,0 +1,4 @@
+username,posX,posY,hp,range,ap,dead
+walker,6,6,3,2,1,False
+test_1,3,7,3,2,1,False
+test_2,1,5,3,2,1,False

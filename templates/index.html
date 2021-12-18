@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Tank Tactics - Play</title>
+    </head>
+    <body>
+        <canvas id='canvas' width='800' height='800' style="background: rgb(209, 209, 209)"></canvas>
+        <form id="move_selection" action="" method="post">
+            <select name="movelist" id="movelist" size="5">
+                <option value="move">Move (1 AP)</option>
+                <option value="shoot">Shoot (1 AP)</option>
+                <option value="range">Upgrade Range (3 AP)</option>
+                <option value="heal">Heal 1 Point (3 AP)</option>
+                <option value="transfer">Transfer Action Point (1 AP)</option>
+            </select>
+            <input type="submit" id="submit" value="Perform Action" onclick="performAction()">
+        </form>
+        <script>
+            function drawBoard(){
+                var cSize = 800;
+                var p = 5;
+                var player_count = player_list.length;
+
+                window.edge_count = Math.ceil((player_count * playerSpace) ** (1/2));
+                var boxScale = cSize / edge_count;
+
+                canvas.width = cSize + p * 2;
+                canvas.height = cSize + p * 2;
+
+                context.clearRect(0,0,canvas.width, canvas.height);
+
+                for (var x = 0; x <= cSize + p; x += cSize / edge_count) {
+                    context.moveTo(0.5 + x + p, p);
+                    context.lineTo(0.5 + x + p, cSize + p);
+                }
+
+                for (var x = 0; x <= cSize + p; x += cSize / edge_count) {
+                    context.moveTo(p, 0.5 + x + p);
+                    context.lineTo(cSize + p, 0.5 + x + p);
+                }
+                context.strokeStyle = "black";
+                context.stroke();
+
+                for (let i = 0; i < player_list.length; i++){
+                    if (!player_list[i].dead) {
+                        renderPlayer(player_list[i], boxScale, p, player_list[i].isClient);
+                    }
+                }
+            }
+
+            function renderPlayer(player, boxScale, padding, isClient) {
+                if(isClient){
+                    context.fillStyle = "#fc801455";
+                    for(let x = player.posX - player.range; x < player.posX + player.range +1; x++){
+                        for(let y = player.posY - player.range; y < player.posY + player.range+1; y++){
+                            context.setTransform(1,0,0,1,0,0);
+                            context.translate(x * boxScale + padding, y * boxScale + padding);
+                            context.fillRect(0,0,boxScale,boxScale);
+                        }
+                    }
+                    
+                    context.fillStyle = "#00FF0055";
+                    for(let x = player.posX - 1; x < player.posX + 2; x++){
+                        for(let y = player.posY - 1; y < player.posY + 2; y++){
+                            context.setTransform(1,0,0,1,0,0);
+                            context.translate(x * boxScale + padding, y * boxScale + padding);
+                            context.fillRect(0,0,boxScale,boxScale);
+                        }
+                    }
+                }
+
+
+                context.setTransform(1,0,0,1,0,0);
+                context.translate(player.posX * boxScale + padding, player.posY * boxScale + padding);
+                
+                if(isClient){
+                    context.fillStyle = "#004400";
+                } else {
+                    context.fillStyle = "#000044";
+                }
+                context.fillRect(padding, padding, boxScale - padding * 2, boxScale - padding * 2);
+
+                context.fillStyle = "#333333";
+                context.fillRect(padding * 4, boxScale * 0.6, boxScale - padding * 8, (boxScale - padding * 4) * 0.2);
+                context.fillStyle = "#FF0000";
+                context.fillRect(padding * 4, boxScale * 0.6, (boxScale - padding * 8) * player.hp / 3.0, (boxScale - padding * 4) * 0.2);
+                
+                context.fillStyle = '#FFFFFF';
+                if(isClient){
+                    context.fillText(player.username + " " + player.ap, padding * 2, padding + boxScale / 2.5);
+                } else {
+                    context.fillText(player.username, padding * 2, padding + boxScale / 2.5);
+                }
+            }
+            
+            function performAction(){
+                var selected = document.getElementById("movelist").selectedOptions[0].value;
+                if (selected == "move") {
+                    moveDir = window.prompt("Which direction would you like to move? (Up, Down, Left, Right)");
+                        player_list.forEach(player => {
+                            if(player.isClient){
+                                if(player.ap >= 1){
+                                    invalid_x = []
+                                    invalid_y = []
+                                    player_list.forEach(player => {
+                                        if(!player.isClient){
+                                            invalid_x.push(player.posX);
+                                            invalid_y.push(player.posY);
+                                        }
+                                    });
+                                    if(moveDir == "Up"){
+                                        if (player.posY > 0 && (! invalid_y.includes(player.posY - 1) || ! invalid_x.includes(player.posX))){
+                                            player.posY-=1;
+                                            player.ap-=1;
+                                        } else {
+                                            window.alert("Movement blocked.");
+                                        }
+                                    }
+
+                                    else if(moveDir == "Down"){
+                                        if (player.posY < window.edge_count - 1 && (! invalid_y.includes(player.posY + 1) || ! invalid_x.includes(player.posX))){
+                                            player.posY+=1;
+                                            player.ap-=1;
+                                        } else {
+                                            window.alert("Movement blocked.");
+                                        }
+                                    }
+
+                                    else if(moveDir == "Left"){
+                                        if (player.posX > 0 && (! invalid_x.includes(player.posX - 1) || ! invalid_y.includes(player.posY))){
+                                            player.posX-=1;
+                                            player.ap-=1;
+                                        } else {
+                                            window.alert("Movement blocked.");
+                                        }
+                                    }
+
+                                    else if(moveDir == "Right"){
+                                        if (player.posX < window.edge_count - 1 && (! invalid_x.includes(player.posX + 1) || ! invalid_y.includes(player.posY))){
+                                            player.posX+=1;
+                                            player.ap-=1;
+                                        } else {
+                                            window.alert("Movement blocked.");
+                                        }
+                                    }
+
+                                    else {
+                                        window.alert("<"+moveDir+"> is not a valid move.");
+                                    }
+                                } else {
+                                    window.alert("Not enough action points.");
+                                }
+                            }
+                        });
+                }
+                else if (selected == "shoot") {
+                    player_list.forEach(player => {
+                        if (player.isClient) {
+                            if(player.ap >= 1){
+                                toShoot = window.prompt("Who would you like to attack?");
+                                found = false;
+                                for (let i = 0; i < player_list.length; i++) {
+                                    if (player_list[i].username == toShoot) {
+                                        target = player_list[i];
+                                        found = true;
+                                        if (target.hp > 0){
+                                            rangeUp = player.posY + player.range;
+                                            rangeDown = player.posY - player.range;
+                                            rangeLeft = player.posX - player.range;
+                                            rangeRight = player.posX + player.range;
+                                            if(target.posX <= rangeRight && target.posX >= rangeLeft && target.posY >= rangeDown && target.posY <= rangeUp){
+                                                target.hp-=1;
+                                                player.ap-=1;
+                                                if(target.hp == 0){
+                                                    target.dead = true;
+                                                    window.alert("PLayer <"+toShoot+"> has been killed.");
+                                                }
+                                            } else {
+                                                window.alert("Player <"+toShoot+"> is not in range.");
+                                            }
+                                        } else {
+                                            window.alert("Player is dead.");
+                                        }
+                                    }
+                                }
+                                if (found == false){
+                                    window.alert("Player <"+toShoot+"> does not exist.");
+                                }
+                            } else {
+                                window.alert("Not enough action points!");
+                            }
+                        }
+                    });
+                }
+                else if (selected == "heal") {
+                    player_list.forEach(player => {
+                        if (player.isClient) {
+                            if (player.ap >= 3) {
+                                if (player.hp < 3) {
+                                    player.hp+=1;
+                                    player.ap-=3;
+                                } else {
+                                    window.alert("Already at full health");
+                                }
+                            } else {
+                                window.alert("Not enough action points!");
+                            }
+                        }
+                    });
+                }
+                else if (selected == "transfer") {
+                    player_list.forEach(player => {
+                        if (player.isClient) {
+                            if(player.ap >= 1){
+                                toTransfer = window.prompt("Who would you like to transfer a point to?");
+                                found = false;
+                                for (let i = 0; i < player_list.length; i++) {
+                                    if (player_list[i].username == toTransfer) {
+                                        target = player_list[i];
+                                        found = true;
+                                        if (target.hp > 0){
+                                            rangeUp = player.posY + player.range;
+                                            rangeDown = player.posY - player.range;
+                                            rangeLeft = player.posX - player.range;
+                                            rangeRight = player.posX + player.range;
+                                            if(target.posX <= rangeRight && target.posX >= rangeLeft && target.posY >= rangeDown && target.posY <= rangeUp){
+                                                target.ap+=1;
+                                                player.ap-=1;
+                                                window.alert("Transfered one action point to <"+toTransfer+">");
+                                            } else {
+                                                window.alert("Player <"+toTransfer+"> is not in range.");
+                                            }
+                                        } else {
+                                            window.alert("Player is dead.");
+                                        }
+                                    }
+                                }
+                                if (found == false){
+                                    window.alert("Player <"+toShoot+"> does not exist.");
+                                }
+                            } else {
+                                window.alert("Not enough action points!");
+                            }
+                        }
+                    });
+                }
+
+                drawBoard();
+            }
+            
+
+            var playerSpace = 40;
+
+            var player_list=[]
+
+            var canvas = document.getElementById("canvas");
+            var context = canvas.getContext("2d");
+
+            var player_list = JSON.parse('{{ player_data | safe }}');
+
+            drawBoard();
+        </script>
+    </body>
+</html>
