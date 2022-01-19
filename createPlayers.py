@@ -9,9 +9,9 @@ field_size = math.ceil((player_max * player_space) ** (1/2))
 
 while len(players) < player_max:
     player_num = len(players)
-    uname = input('Username for Player {} (Leave blank to end): '.format(player_num + 1))
+    uname = input('Username for Player {}: '.format(player_num + 1))
     if uname == "":
-        break
+        continue
 
     done = False
     while(not done):
