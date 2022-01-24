@@ -1,18 +1,28 @@
 #!/usr/bin/python
 
+from ctypes import util
+from imp import lock_held
 import json
+from re import I, T, U
+from socketserver import UnixDatagramServer
+from termios import IUCLC
+from xml.etree.ElementInclude import LimitedRecursiveIncludeError
+from numpy import ubyte
 import pandas as pd
 from flask import Flask, request, render_template, redirect, url_for, \
-    session
+    session, jsonify
 from gamemanager import GameManager as GM
 
 app = Flask(__name__)
 
+def save_player_data(data):
+    df = pd.read_json(data)
+    df.to_csv('playerData.csv')
 
 def load_player_data(uname):
     data = pd.read_csv('playerData.csv')
     data['isClient'] = (data['username'] == uname)
-    session['player_data'] = data.to_dict('records')
+    session['player_data'] = data
     session['player_json'] = data.to_json(orient='records')
 
 
@@ -25,8 +35,8 @@ def load_login():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if (request.method == 'POST'):
-        uname = request.form['username']
-        load_player_data(uname)
+        session['uname'] = request.form['username']
+        load_player_data(session['uname'])
         return redirect(url_for('play'))
     return render_template('login.html')
 
@@ -38,15 +48,20 @@ def play():
 
 @app.route('/play', methods=['POST', 'GET'])
 def handle_move():
-    manager = GM(session['player_data'])
     if (request.method == 'POST'):
-        session['player_data'] = manager.handle_move(request.form.get('movelist'))
-    request.cookies.get('player_json', False)
-    session['player_json'] = json.dumps(session['player_data'])
-    return render_template('index.html', player_json=session['player_json'])
+        move = request.form['move']
+
+        load_player_data(session['uname'])
+        gm = GM(session['player_data'])
+        player_data = gm.handle_move(move)
+        save_player_data(player_data)
+
+
+        return jsonify({'player_data': player_data})
+    return render_template('index.html', player_data=session['player_json'])
 
 
 if __name__ == '__main__':
     app.secret_key = 'key:)'
-    app.session_cookie_samesite = "lax"
-    app.run()
+    # app.session_cookie_samesite = "lax"
+    app.run(debug=True)
