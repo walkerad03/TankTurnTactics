@@ -1,9 +1,13 @@
-#!/usr/bin/python
+'''
+This module handles the server side of the tank turn tactics website.
+'''
 
+import os
 import pandas as pd
 from flask import Flask, request, render_template, redirect, url_for, \
-    session, jsonify
-from gamemanager import GameManager as GM
+    session, jsonify, send_from_directory
+from flask_socketio import SocketIO
+from gamemanager import GameManager
 
 app = Flask(__name__)
 
@@ -22,15 +26,23 @@ def _load_player_data():
     session['data_json'] = df_data.to_json(orient='records')
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico',
+                               mimetype='image/vnd.microsoft.icon')
+
+
 @app.route('/')
 def load_login():
+    '''Redirects clients who travel to the root URL.'''
     return redirect(url_for('login'))
 
 
-# Route for handling the login page logic
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if (request.method == 'POST'):
+    '''Confirms logging in for client and forwards game data to the client'''
+    if request.method == 'POST':
         session['uname'] = request.form['username']
         _load_player_data()
         return redirect(url_for('play'))
@@ -39,19 +51,19 @@ def login():
 
 @app.route('/play')
 def play():
+    '''Sends base webpage to players after logging in'''
     return render_template('index.html', player_data=session['data_json'])
 
 
 @app.route('/play', methods=['POST', 'GET'])
 def handle_move():
-    if (request.method == 'POST'):
+    '''Handles client game move data'''
+    if request.method == 'POST':
         move = request.form['move']
-        print(move)
 
         _load_player_data()
-        print(session['data_json'])
-        gm = GM(session['data_json'])
-        session['data_json'] = gm.handle_move(move)
+        manager = GameManager(session['data_json'])
+        session['data_json'] = manager.handle_move(move)
         _save_player_data()
 
         return jsonify({'player_data': session['data_json']})
@@ -60,4 +72,5 @@ def handle_move():
 
 if __name__ == '__main__':
     app.secret_key = 'key:)'
-    app.run(debug=True)
+    socket = SocketIO(app)
+    socket.run(app)
